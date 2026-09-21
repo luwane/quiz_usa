@@ -23,7 +23,7 @@
         #map-wrapper {
             position: relative;
             width: 100%;
-            padding-bottom: 62.5%;
+            padding-bottom: 62.5%; /* Ratio pour 975x610 */
             height: 0;
             background: #e0f7fa;
             border-radius: 8px;
@@ -45,10 +45,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #2c3e50;
             z-index: 10;
+            width: 90%;
         }
 
         .state { fill: #cccccc; stroke: #ffffff; stroke-width: 1; cursor: pointer; transition: fill 0.2s; }
@@ -80,7 +81,7 @@
     <div id="question">Cliquez sur "Nouvelle Partie" pour commencer.</div>
 
     <div id="map-wrapper">
-        <div id="loading-message">Chargement de la carte des 50 États...</div>
+        <div id="loading-message">Chargement de la carte en cours...</div>
         <svg viewBox="0 0 975 610" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 
@@ -89,6 +90,13 @@
 </div>
 
 <script>
+    // Intercepter les erreurs globales pour les afficher sur mobile
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+        document.getElementById('loading-message').innerHTML = "Erreur technique : " + msg;
+        document.getElementById('loading-message').style.color = "red";
+        return false;
+    };
+
     const statesData = [
         { name: "Alabama", capital: "Montgomery" }, { name: "Alaska", capital: "Juneau" },
         { name: "Arizona", capital: "Phoenix" }, { name: "Arkansas", capital: "Little Rock" },
@@ -125,11 +133,8 @@
     const svg = d3.select("svg");
     const path = d3.geoPath();
 
-    fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
-        .then(response => {
-            if(!response.ok) throw new Error("Fichier carte introuvable");
-            return response.json();
-        })
+    // LA CORRECTION EST ICI : states-albers-10m.json contient les coordonnées pré-projetées (pixels)
+    d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json")
         .then(us => {
             document.getElementById("loading-message").style.display = "none";
 
@@ -145,14 +150,13 @@
                 });
         })
         .catch(error => {
-            document.getElementById('loading-message').innerText = "Erreur de chargement de la carte.";
+            document.getElementById('loading-message').innerText = "Erreur de téléchargement des tracés : " + error.message;
             document.getElementById('loading-message').style.color = "red";
-            console.error(error);
         });
 
     function demarrerJeu() {
         if (!document.querySelector(".state")) {
-            alert("Veuillez patienter un instant, la carte finit de charger !");
+            alert("La carte n'est pas encore prête !");
             return;
         }
         score = 0; 
@@ -172,7 +176,7 @@
         optionsDiv.innerHTML = ""; 
 
         if (currentMode === "state_to_cap") {
-            qText.innerText = `Quelle est la capitale de l'état : ${currentQuestion.name} ?`;
+            qText.innerText = `Capitale de : ${currentQuestion.name} ?`;
             genererBoutonsCapitales();
         } else {
             qText.innerText = `Où se trouve : ${currentQuestion.capital} ? (Touchez la carte)`;

@@ -1,47 +1,45 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz des États et Capitales des USA</title>
-    
-    <!-- Scripts avec gestion d'erreur au cas où ils sont bloqués -->
-    <script src="https://d3js.org/d3.v7.min.js" onerror="alert('Erreur: Impossible de charger D3.js. Vérifiez votre bloqueur de pub.')"></script>
-    <script src="https://unpkg.com/topojson-client@3" onerror="alert('Erreur: Impossible de charger TopoJSON.')"></script>
-    
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f4f7f6; margin: 0; padding: 10px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
-        h1 { color: #2c3e50; font-size: 1.3em; margin-bottom: 10px; }
-        
+        h1 { color: #2c3e50; font-size: 1.4em; margin-bottom: 15px; }
+
         .controls { margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
         select, button { padding: 12px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; width: 100%; max-width: 300px; cursor: pointer; }
         button { background-color: #2c3e50; color: white; border: none; font-weight: bold; }
         button:hover { background-color: #1a252f; }
-        
+
         #question { font-size: 1.1em; font-weight: bold; margin: 15px 0; color: #34495e; min-height: 2.5em; display: flex; align-items: center; justify-content: center; }
-        
-        /* LA METHODE INFAILLIBLE POUR LE RESPONSIVE SVG */
+
         #map-wrapper {
             position: relative;
             width: 100%;
-            padding-bottom: 62.5%; /* Ratio pour 975x610 (610/975 = 0.625) */
+            padding-bottom: 62.5%;
             height: 0;
             background: #e0f7fa;
             border-radius: 8px;
             border: 1px solid #b2ebf2;
             overflow: hidden;
         }
-        
+
         svg {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            touch-action: none; /* Empêche le zoom/scroll accidentel en touchant la carte */
+            touch-action: none;
         }
-        
+
         #loading-message {
             position: absolute;
             top: 50%;
@@ -52,56 +50,45 @@
             color: #2c3e50;
             z-index: 10;
         }
-        
+
         .state { fill: #cccccc; stroke: #ffffff; stroke-width: 1; cursor: pointer; transition: fill 0.2s; }
         .state:hover { fill: #ffb74d; }
         .state.correct { fill: #4caf50 !important; }
         .state.incorrect { fill: #f44336 !important; }
-        
+
         .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; }
-        .option-btn { padding: 12px; border: none; background: #3498db; color: white; border-radius: 5px; flex: 1 1 45%; max-width: 200px; font-size: 14px; font-weight: bold; }
-        
-        #score { font-size: 18px; margin-top: 15px; font-weight: bold; color: #2c3e50; }
+        .option-btn { padding: 12px; border: none; background: #3498db; color: white; border-radius: 5px; flex: 1 1 45%; max-width: 200px; font-size: 14px; font-weight: bold; cursor: pointer;}
+        .option-btn:hover { background: #2980b9; }
+
+        #score { font-size: 18px; margin-top: 20px; font-weight: bold; color: #2c3e50; }
     </style>
 </head>
 <body>
 
-
 <div class="container">
     <h1>🇺🇸 Quiz États et Capitales USA</h1>
-    
+
     <div class="controls">
         <select id="mode">
-            <option value="state_to_cap">Trouver la Capitale (boutons)</option>
-            <option value="cap_to_state">Trouver l'État (clic sur carte)</option>
-            <option value="mixed">Mode Mixte</option>
+            <option value="state_to_cap">Trouver la Capitale (choix multiple)</option>
+            <option value="cap_to_state">Trouver l'État (clic sur la carte)</option>
+            <option value="mixed">Mode Mixte (les deux)</option>
         </select>
         <button onclick="demarrerJeu()">Nouvelle Partie</button>
     </div>
 
+    <div id="question">Cliquez sur "Nouvelle Partie" pour commencer.</div>
 
-    <div id="question">Cliquez sur Nouvelle Partie pour commencer.</div>
-    
-    <!-- Conteneur blindé pour forcer l'affichage de la carte -->
     <div id="map-wrapper">
-        <div id="loading-message">Chargement de la carte...</div>
+        <div id="loading-message">Chargement de la carte des 50 États...</div>
         <svg viewBox="0 0 975 610" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
-
 
     <div class="options" id="options"></div>
     <div id="score">Score: 0 / 0</div>
 </div>
 
-
 <script>
-    // Sécurité : Vérifier si D3 a bien été chargé par le navigateur
-    if (typeof d3 === 'undefined') {
-        document.getElementById('loading-message').innerText = "Erreur fatale: d3.js bloqué par le navigateur.";
-        document.getElementById('loading-message').style.color = "red";
-    }
-
-
     const statesData = [
         { name: "Alabama", capital: "Montgomery" }, { name: "Alaska", capital: "Juneau" },
         { name: "Arizona", capital: "Phoenix" }, { name: "Arkansas", capital: "Little Rock" },
@@ -130,27 +117,22 @@
         { name: "Wisconsin", capital: "Madison" }, { name: "Wyoming", capital: "Cheyenne" }
     ];
 
-
     let currentQuestion = null;
     let score = 0;
     let attempts = 0;
     let currentMode = "";
-    
+
     const svg = d3.select("svg");
     const path = d3.geoPath();
 
-
-    // On charge le fichier TopoJSON
     fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
         .then(response => {
             if(!response.ok) throw new Error("Fichier carte introuvable");
             return response.json();
         })
         .then(us => {
-            // Disparition du texte de chargement
             document.getElementById("loading-message").style.display = "none";
-            
-            // Dessin de la carte
+
             svg.append("g")
                 .selectAll("path")
                 .data(topojson.feature(us, us.objects.states).features)
@@ -163,52 +145,50 @@
                 });
         })
         .catch(error => {
-            document.getElementById('loading-message').innerText = "Erreur réseau: Impossible de télécharger la carte.";
+            document.getElementById('loading-message').innerText = "Erreur de chargement de la carte.";
             document.getElementById('loading-message').style.color = "red";
             console.error(error);
         });
 
-
     function demarrerJeu() {
         if (!document.querySelector(".state")) {
-            alert("La carte n'est pas encore prête !");
+            alert("Veuillez patienter un instant, la carte finit de charger !");
             return;
         }
-        score = 0; attempts = 0;
-        document.getElementById("score").innerText = `Score: 0 / 0`;
+        score = 0; 
+        attempts = 0;
+        mettreAJourScore();
         d3.selectAll(".state").classed("correct", false).classed("incorrect", false);
         poserQuestion();
     }
-
 
     function poserQuestion() {
         const mode = document.getElementById("mode").value;
         currentMode = mode === "mixed" ? (Math.random() > 0.5 ? "state_to_cap" : "cap_to_state") : mode;
         currentQuestion = statesData[Math.floor(Math.random() * statesData.length)];
-        
+
         const qText = document.getElementById("question");
         const optionsDiv = document.getElementById("options");
-        optionsDiv.innerHTML = "";
-
+        optionsDiv.innerHTML = ""; 
 
         if (currentMode === "state_to_cap") {
-            qText.innerText = `Capitale de : ${currentQuestion.name} ?`;
+            qText.innerText = `Quelle est la capitale de l'état : ${currentQuestion.name} ?`;
             genererBoutonsCapitales();
         } else {
-            qText.innerText = `Où est : ${currentQuestion.capital} ? (Touchez la carte)`;
+            qText.innerText = `Où se trouve : ${currentQuestion.capital} ? (Touchez la carte)`;
         }
     }
-
 
     function genererBoutonsCapitales() {
         const optionsDiv = document.getElementById("options");
         let choices = [currentQuestion.capital];
+
         while(choices.length < 4) {
             let randCap = statesData[Math.floor(Math.random() * statesData.length)].capital;
             if(!choices.includes(randCap)) choices.push(randCap);
         }
         choices.sort(() => Math.random() - 0.5);
-        
+
         choices.forEach(cap => {
             let btn = document.createElement("button");
             btn.className = "option-btn";
@@ -218,27 +198,29 @@
         });
     }
 
-
     function verifierReponseBouton(reponse) {
         attempts++;
         if (reponse === currentQuestion.capital) {
             score++;
-            poserQuestion();
+            poserQuestion(); 
         } else {
-            alert(`Faux ! C'était ${currentQuestion.capital}.`);
+            alert(`Faux ! La bonne réponse était ${currentQuestion.capital}.`);
             poserQuestion();
         }
         mettreAJourScore();
     }
 
-
     function verifierReponseCarte(nomEtat, elementMap) {
-        if (currentMode !== "cap_to_state") return;
+        if (currentMode !== "cap_to_state") return; 
+
         attempts++;
         if (nomEtat === currentQuestion.name) {
             score++;
             d3.select(elementMap).classed("correct", true);
-            setTimeout(() => { d3.select(elementMap).classed("correct", false); poserQuestion(); }, 500);
+            setTimeout(() => { 
+                d3.select(elementMap).classed("correct", false); 
+                poserQuestion(); 
+            }, 500);
         } else {
             d3.select(elementMap).classed("incorrect", true);
             setTimeout(() => d3.select(elementMap).classed("incorrect", false), 800);
@@ -246,12 +228,10 @@
         mettreAJourScore();
     }
 
-
     function mettreAJourScore() {
         document.getElementById("score").innerText = `Score: ${score} / ${attempts}`;
     }
 </script>
-
 
 </body>
 </html>
